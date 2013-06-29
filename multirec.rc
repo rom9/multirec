@@ -1,0 +1,5 @@
+# dev	inv	skip	buftm	pertm
+hw:0	0	0		170667	85333	# CMedia  (# EnsoniQ)
+#hw:1	0	47		170667	85333	# SB 5.1
+#hw:2	1	50		170667	85333	# SB512
+#hw:3	0	2		170667	85333	# ALS120
