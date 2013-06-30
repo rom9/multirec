@@ -124,10 +124,6 @@ void readConfig()
 		if(!inv)
 			continue;
 
-		char *skip = strtok(NULL, delims);
-		if(!skip)
-			continue;
-
 		char *buftm = strtok(NULL, delims);
 		if(!buftm)
 			continue;
