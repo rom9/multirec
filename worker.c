@@ -25,9 +25,6 @@
 
 #undef SHORT_CIRCUIT
 
-//DiskJob *first = NULL;
-//DiskJob *last = NULL;
-
 pthread_mutex_t workerMutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_t wrk;
 
@@ -36,36 +33,34 @@ int finished = 0;
 static float floatIn[BSIZ*MR_CHANNELS];
 static float floatOut[MAXOUTFRMS*MR_CHANNELS];
 
-//SRC_DATA srcData;
-//unsigned long long masterTS,
-//					  currentTS;
 
 MR_SAMPLE *leftData, *rightData;
 static MRFrame *tmpOutBuf;
 
-
 #include "logging.inc"
-
 
 /**
  * Stretches the given audio chunk to align it to the audio of the master device
  */
-int conve(MRDevice *c, MRAlsaChunk *chunk, int end, MRFrame *outBuf, long *outputLen)
-{
+int conve(MRDevice *c, MRAlsaChunk *chunk, int end, MRFrame *outBuf,
+		long *outputLen) {
 	// *** Auto-adjust algorithm : re-calculate src ratio to obtain the same number
 	// *** of output frames as the master device.
 
-	// Time difference (in frames) between now and the last read from the master device.
-	long long tsDiff = ( (chunk->ts / (long long) CPS) -
-						 (chunk->masterTS / (long long) CPS) );
+	// Time difference (in frames) between now and the last read from the master
+	// device.
+	long long tsDiff = ((chunk->ts / (long long) CPS)
+			- (chunk->masterTS / (long long) CPS));
 
-	// Given the above time difference and the master pcm delay, estimate how many frames
-	// the master device has captured in this instant.
-	unsigned long long framesThatShouldHaveBeen = (chunk->masterFrameCount +chunk->masterDelay + tsDiff );
+	// Given the above time difference and the master pcm delay, estimate how many
+	// frames the master device has captured in this instant.
+	unsigned long long framesThatShouldHaveBeen = (chunk->masterFrameCount
+			+ chunk->masterDelay + tsDiff);
 
-	// This (slave) device should have captured the same amount of frames in this same instant.
-	// Calculate the frame difference considering this pcm delay.
-	long diff = framesThatShouldHaveBeen - (c->outputFrameCount + chunk->len + chunk->delay);
+	// This (slave) device should have captured the same amount of frames in this
+	// same instant. Calculate the frame difference considering this pcm delay.
+	long diff = framesThatShouldHaveBeen
+			- (c->outputFrameCount + chunk->len + chunk->delay);
 
 	c->srcData.data_in = floatIn;
 	c->srcData.data_out = floatOut;
@@ -78,23 +73,26 @@ int conve(MRDevice *c, MRAlsaChunk *chunk, int end, MRFrame *outBuf, long *outpu
 	c->srcData.src_ratio = ratio;
 	int err = src_set_ratio(c->srcState, ratio);
 	if (err < 0) {
-		log_error("dev %d : src_set_ratio error: %s\n", c->idx, src_strerror(err));
+		log_error("dev %d : src_set_ratio error: %s\n", c->idx,
+				src_strerror(err));
 		return -1;
 	}
 
-	log_debug("dev %d : outcount=%llu tsDiff=%lld diff=%ld new ratio=%f\n", c->idx, c->outputFrameCount, tsDiff, diff, ratio);
-
+	log_debug("dev %d : outcount=%llu tsDiff=%lld diff=%ld new ratio=%f\n",
+			c->idx, c->outputFrameCount, tsDiff, diff, ratio);
 
 	// *** Convert input data to float, put the result in the SRC input buffer. ***
-	src_short_to_float_array( (short*)chunk->buf, c->srcData.data_in, chunk->len*MR_CHANNELS );
+	src_short_to_float_array((short*) chunk->buf, c->srcData.data_in,
+			chunk->len * MR_CHANNELS);
 
 	// *** Stretch audio in the SRC input buffer ***
 	c->srcData.input_frames = chunk->len;
 	c->srcData.end_of_input = end;
 
 	int errn = src_process(c->srcState, &(c->srcData));
-	if(errn) {
-		log_error("dev %d : src_process error : %s\n", c->idx, src_strerror(errn));
+	if (errn) {
+		log_error("dev %d : src_process error : %s\n", c->idx,
+				src_strerror(errn));
 		return -1;
 	}
 
@@ -102,11 +100,11 @@ int conve(MRDevice *c, MRAlsaChunk *chunk, int end, MRFrame *outBuf, long *outpu
 	*outputLen = c->srcData.output_frames_gen;
 
 	// *** Convert SRC output buffer data from float back to short. ***
-	int size = c->srcData.output_frames_gen*MR_CHANNELS;
+	int size = c->srcData.output_frames_gen * MR_CHANNELS;
 	// TODO OPTIMIZATION : i have to store each channel in a separate
 	// output buffer. Would be best to do it in the same loop as the
 	// float-to-short conversion.
-	src_float_to_short_array(c->srcData.data_out, (short*)outBuf, size);
+	src_float_to_short_array(c->srcData.data_out, (short*) outBuf, size);
 
 	return 0; // success
 }
@@ -119,22 +117,17 @@ void splitStereo(MRFrame *stereoBuf, int len, int invert, MR_SAMPLE *left,
 	// Optimization : if signal from this device has to be inverted, a
 	// separate loop is used.
 	// TODO : could be smarter!!
-	if(invert)
-	{
-		while(len)
-		{
+	if (invert) {
+		while (len) {
 			len--;
-			*left = ((MR_SAMPLE)0xFFFF) - stereoBuf->v[0]; // Append left sample value to left buffer
-			*right = ((MR_SAMPLE)0xFFFF) - stereoBuf->v[1]; // Append right sample value to right buffer
+			*left = ((MR_SAMPLE) 0xFFFF) - stereoBuf->v[0]; // Append left sample value to left buffer
+			*right = ((MR_SAMPLE) 0xFFFF) - stereoBuf->v[1]; // Append right sample value to right buffer
 			stereoBuf++;
 			left++;
 			right++;
 		}
-	}
-	else
-	{
-		while(len)
-		{
+	} else {
+		while (len) {
 			len--;
 			*left = stereoBuf->v[0]; // Append left sample value to left buffer
 			*right = stereoBuf->v[1]; // Append right sample value to the right buffer
@@ -146,25 +139,24 @@ void splitStereo(MRFrame *stereoBuf, int len, int invert, MR_SAMPLE *left,
 }
 
 
-void *diskWorker(void *arg)
-{
+void *diskWorker(void *arg) {
 	MRDevice *currentDev;
-	while(1)
-	{
-		// Consume data from all the queues, starting from the one associated with the 1st device.
-		// Exit when all devices' queues are empty.
+	while (1) {
+		// Consume data from all the queues, starting from the one associated with
+		// the 1st device. Exit when all devices' queues are empty.
 		int i;
 		for (i = 0; i < devCount; i++) {
 			currentDev = devices[i];
 
-			MRAlsaChunk *cnk = (MRAlsaChunk*)cons_own(currentDev->dualQueue);
+			MRAlsaChunk *cnk = (MRAlsaChunk*) cons_own(currentDev->dualQueue);
 
 			if (cnk == NULL)
 				continue;
 
 			// FIXME FIXME
 			if (cnk->len == 0) {
-				log_debug("\nDBG---discarding empty bucket from dev %d\n", currentDev->idx);
+				log_debug("\nDBG---discarding empty bucket from dev %d\n",
+						currentDev->idx);
 				cons_free(currentDev->dualQueue);
 				continue;
 			}
@@ -176,7 +168,7 @@ void *diskWorker(void *arg)
 
 			// don't stretch audio coming from dev 0
 			// don't stretch if no data has been read from master device yet.
-			if (i == 0 || cnk->masterFrameCount==0 ) {
+			if (i == 0 || cnk->masterFrameCount == 0) {
 				outBuf = cnk->buf;
 				outLen = cnk->len;
 			} else {
@@ -187,13 +179,14 @@ void *diskWorker(void *arg)
 
 				unsigned long long t = rdtsc();
 				if (conve(currentDev, cnk, end, outBuf, &outLen)) {
-					log_error("Error stretching audio from dev %d", currentDev->idx);
+					log_error("Error stretching audio from dev %d",
+							currentDev->idx);
 					finish(-1);
 				}
-				log_debug("conversion time =%llu us\n", ( (rdtsc() - t) / (CPMillis/1000)) );
+				log_debug("conversion time =%llu us\n",
+						((rdtsc() - t) / (CPMillis / 1000)));
 
 			}
-
 
 #ifdef MRSLOW
 			// Fuzzy "handbrake" just for stress testing...
@@ -206,24 +199,23 @@ void *diskWorker(void *arg)
 			currentDev->outputFrameCount += outLen;
 
 			// *** split stereo audio to dual mono ***
-			splitStereo(outBuf, outLen, currentDev->invert, leftData, rightData);
+			splitStereo(outBuf, outLen, currentDev->invert, leftData,
+					rightData);
 
 			// *** write output to audio file ***
-			sf_writef_short (currentDev->outFile[0], leftData, outLen );
-			sf_writef_short (currentDev->outFile[1], rightData, outLen );
+			sf_writef_short(currentDev->outFile[0], leftData, outLen);
+			sf_writef_short(currentDev->outFile[1], rightData, outLen);
 
 			// *** release the audio chunk to its queue ***
 			cons_free(currentDev->dualQueue);
 
-			// TODO Maybe renaming multirec->capture and worker->output would make sense...?
-			
 		} // end for
 
 		// No more jobs pending.
 		// Check if we are stopping: if so, finalize and truncate the output files.
 		// Otherwise, sleep for 10millis
 		// then check again for new jobs.
-		if(finished) {
+		if (finished) {
 			// TODO perform files truncation...
 			break;
 		} else {
@@ -238,21 +230,19 @@ void *diskWorker(void *arg)
 /**
  * Allocate buffers needed for conversion & output, and create the "consumer" thread.
  */
-void initWorker()
-{
-    FILE* log = fopen("output.log", "w+");
+void initWorker() {
+	FILE* log = fopen("output.log", "w+");
 	initLogging(log, DEBUG);
 
 	// allocate 2 mono output buffers
-	tmpOutBuf = (MRFrame*)malloc(sizeof(MRFrame) * MAXOUTFRMS);
+	tmpOutBuf = (MRFrame*) malloc(sizeof(MRFrame) * MAXOUTFRMS);
 
 	// allocate 2 mono output buffers
-	leftData = (MR_SAMPLE*)malloc(sizeof(MR_SAMPLE) * MAXOUTFRMS);
-	rightData = (MR_SAMPLE*)malloc(sizeof(MR_SAMPLE) * MAXOUTFRMS);
+	leftData = (MR_SAMPLE*) malloc(sizeof(MR_SAMPLE) * MAXOUTFRMS);
+	rightData = (MR_SAMPLE*) malloc(sizeof(MR_SAMPLE) * MAXOUTFRMS);
 
 #ifndef SHORT_CIRCUIT
-	if ( pthread_create( &wrk, NULL, diskWorker, NULL) )
-	{
+	if (pthread_create(&wrk, NULL, diskWorker, NULL)) {
 		printf("error creating thread.");
 		finish(-1);
 	}
@@ -260,12 +250,10 @@ void initWorker()
 }
 
 
-
-void waitPendingJobs()
-{
+void waitPendingJobs() {
 	// No more jobs will be committed.
 	finished = 1;
-	if ( pthread_join ( wrk, NULL ) ) {
+	if (pthread_join(wrk, NULL)) {
 		printf("error joining thread.");
 	}
 }

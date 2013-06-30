@@ -30,7 +30,8 @@ Bucket* createBucket(unsigned int contentSize) {
 }
 
 void destroyBucket(Bucket* bkt) {
-	// Warning: you won't have access to next and prev fields after destroying a bucket!!
+	// Warning: you won't have access to next and prev fields after destroying a
+	// bucket!!
 	free(bkt->ptr); // destroy contents of the bucket first...
 	free(bkt); // destroy the bucket.
 }
@@ -70,16 +71,19 @@ void destroy(DualQueue* dq) {
 	bkt = dq->empty.head;
 	if(bkt)
 		do {
-			nxt = bkt->next; // Store a pointer to next bucket before destroying the current one...
+			nxt = bkt->next; // Store a pointer to next bucket before destroying
+							// the current one...
 			again = (bkt != dq->empty.tail);
 			destroyBucket(bkt);
 			bkt = nxt;
 		} while( again );
 
-	bkt = dq->full.head;  // This queue should already be empty, since all buckets will have been consumed.
+	bkt = dq->full.head;  // This queue should already be empty, since all buckets
+						 // will have been consumed.
 	if(bkt)
 		do {
-			nxt = bkt->next; // Store a pointer to next bucket before destroying the current one...
+			nxt = bkt->next; // Store a pointer to next bucket before destroying
+							// the current one...
 			again = (bkt != dq->full.tail);
 			destroyBucket(bkt);
 			bkt = nxt;
@@ -108,7 +112,8 @@ inline Bucket* _poll(struct Queue_s *q) {
 	// Return the head bucket.
 	Bucket *rv = q->head;
 
-	// If it was the tail bucket as well, then it was the only one. So, this queue is now empty.
+	// If it was the tail bucket as well, then it was the only one. So, this queue
+	// is now empty.
 	if(rv==q->tail) {
 		q->head=0;
 		q->tail=0;
@@ -122,7 +127,8 @@ inline Bucket* _poll(struct Queue_s *q) {
 inline void _offer(struct Queue_s *q, Bucket* b) {
 	q->tail = b; // Add the newcomer at the tail.
 
-	// If this queue has no head, then the newcomer is the only bucket in the queue. So, it is both at head and tail.
+	// If this queue has no head, then the newcomer is the only bucket in the
+	// queue. So, it is both at head and tail.
 	if(!q->head)
 		q->head = b;
 }
@@ -133,32 +139,38 @@ inline void _offer(struct Queue_s *q, Bucket* b) {
 // * Producer (capture device) side *
 
 /**
- * Gets a fresh buffer for storing captured data. Locks the returned buffer until prod_free() is called.
+ * Gets a fresh buffer for storing captured data. Locks the returned buffer until
+ * prod_free() is called.
  *
- * Warning! A return value of zero is an error condition. It means "No fresh buffer available!" Bad thing,
- * queue should have grown automatically, this shouldn't happen.
+ * Warning! A return value of zero is an error condition. It means "No fresh
+ * buffer available!" Bad thing, queue should have grown automatically, this
+ * shouldn't happen.
  */
 void* prod_own(DualQueue *dq) {
 	pthread_mutex_lock( &(dq->mutex) ); // >> critical section
 	dq->producerOwned = _poll( &(dq->empty) );
 	pthread_mutex_unlock( &(dq->mutex) ); // << exit critical section
 
-	// If no bucket was found in the queue, return null. Otherwise, return the associated buffer.
+	// If no bucket was found in the queue, return null. Otherwise, return the
+	// associated buffer.
 	return dq->producerOwned ?  dq->producerOwned->ptr : 0;
 }
 
 /**
- * Unlocks the buffer previously returned by prod_own(). The buffer is now ready for consumption
- * by the worker thread. Argument 'len' is the number of bytes actually written by the producer.
+ * Unlocks the buffer previously returned by prod_own(). The buffer is now ready
+ * for consumption by the worker thread. Argument 'len' is the number of bytes
+ * actually written by the producer.
  */
 void prod_free(DualQueue *dq) {
 	pthread_mutex_lock( &(dq->mutex) ); // >> critical section
-//	dq->producerOwned->len = len;
+
 	_offer( &(dq->full), dq->producerOwned);
 
-	// Preparation: if no empty bucket is available for polling at the next loop, create a new one.
+	// Preparation: if no empty bucket is available for polling at the next loop,
+	// create a new one.
 	if(!dq->empty.head) {
-		dq->empty.head = grow(dq, dq->producerOwned); // insert the newly created bucket after the one produced right now.
+		// insert the newly created bucket after the one produced right now.
+		dq->empty.head = grow(dq, dq->producerOwned);
 		dq->empty.tail = dq->empty.head;
 		flg_grown = 1;
 	}
@@ -191,10 +203,12 @@ int has_grown() {
 	return rv;
 }
 
+
 // * Consumer (worker) side *
 
 /**
- * Gets the next buffer full of captured data from the queue. Locks the returned buffer until cons_free() is called.
+ * Gets the next buffer full of captured data from the queue. Locks the returned
+ * buffer until cons_free() is called.
  * Called by the worker thread when it's ready to process data from this queue.
  */
 void *cons_own(DualQueue *dq) {
@@ -202,7 +216,8 @@ void *cons_own(DualQueue *dq) {
 	dq->consumerOwned = _poll( &(dq->full) );
 	pthread_mutex_unlock( &(dq->mutex) ); // << exit critical section
 
-	// If no bucket was found in the queue, return null. Otherwise, return the associated buffer.
+	// If no bucket was found in the queue, return null. Otherwise, return the
+	// associated buffer.
 	if (dq->consumerOwned)
 		return dq->consumerOwned->ptr;
 	else
@@ -210,8 +225,9 @@ void *cons_own(DualQueue *dq) {
 }
 
 /**
- * Unlocks the buffer previously returned by cons_own(). The buffer has already been consumed and is now ready to be
- * picked by the producer for storing more data.
+ * Unlocks the buffer previously returned by cons_own(). The buffer has already
+ * been consumed and is now ready to be picked up by the producer for storing
+ * more data.
  */
 void cons_free(DualQueue *dq) {
 	pthread_mutex_lock( &(dq->mutex) ); // >> critical section

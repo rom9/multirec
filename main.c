@@ -31,31 +31,11 @@ int stopRequested = 0;
 
 int confirmStop = 0;
 
-/*
-void cmdQuit()
-{
-	attron(A_BOLD);
-	mvaddstr(10,10,"Really exit (y/n) ? ");
-	attroff(A_BOLD);
-	
-	// Call nocbreak+cbreak to exit halfdelay mode, and issue a blocking getch().
-	nocbreak();
-	cbreak();
+short oldLevels[4][2] = {{10,10},{10,10},{10,10},{10,10}};
+short levels[4][2] = {{0,0},{0,0},{0,0},{0,0}};
 
-	if(getch()=='y')
-	{
-		// Stop the recording hardware and finalize the files...
-		stopRecording();
-		// ...then, exit the curses loop and end the program
-		exitRequested = 1;
-	}
-	else
-		mvaddstr(10,10,"                       ");
-}
-*/
 
-void cmdStartRec()
-{
+void cmdStartRec() {
 	attron(A_BOLD | A_BLINK | COLOR_PAIR(COLOR_RED));
 	int y = getmaxy(stdscr);
 	//~ char buf[100];
@@ -67,63 +47,47 @@ void cmdStartRec()
 	startRecording();
 }
 
-void cmdStopRec()
-{
-	attron(A_BOLD);
-	mvaddstr(10,10,"Really exit (y/n) ? ");
-	attroff(A_BOLD);
-	
-	confirmStop = 1;
-	
-/*
-	// TODO Confirm !!!!
-	stopRecording();
-	int y, x;
-	getmaxyx(stdscr, y, x);
-	mvaddstr(y-1, 10, "   ");
-*/
 
+void cmdStopRec() {
+	attron(A_BOLD);
+	mvaddstr(10, 10, "Really exit (y/n) ? ");
+	attroff(A_BOLD);
+
+	confirmStop = 1;
 }
 
 
-short oldLevels[4][2] = {{10,10},{10,10},{10,10},{10,10}};
-short levels[4][2] = {{0,0},{0,0},{0,0},{0,0}};
-inline void plotLevel(short lev, short devNum, short chNum)
-{
+inline void plotLevel(short lev, short devNum, short chNum) {
 	int i;
 	short xpos = 3 + ((devNum*6) + (chNum*3));
 	short ypos = 1-(lev/2);
-	for(i=oldLevels[devNum][chNum]; i<ypos; i++)
+	for(i=oldLevels[devNum][chNum]; i<ypos; i++) {
 		mvaddch(i , xpos, ' ');
+	}
 
-	for(i=ypos; i<=oldLevels[devNum][chNum]; i++)
-	{
+	for(i=ypos; i<=oldLevels[devNum][chNum]; i++) {
 		chtype c = (i==ypos && lev % 2 != 0) ? ACS_S7 : ACS_CKBOARD;
-		if(i<=2)
-		{
+		if(i<=2) {
 			attron(COLOR_PAIR(COLOR_RED));
 			mvaddch(i , xpos, c);
 			attroff(COLOR_PAIR(COLOR_RED));
-		}
-		else if(i<=5)
-		{
+		} else if(i<=5) {
 			attron(COLOR_PAIR(COLOR_GREEN));
 			mvaddch(i , xpos, c);
 			attroff(COLOR_PAIR(COLOR_GREEN));
-		}
-		else
+		} else {
 			mvaddch(i , xpos, c);
+		}
 	}
-		
+
 
 	oldLevels[devNum][chNum] = ypos;
 }
 
-void monitor()
-{
+
+void monitor() {
 	int i;
-	for(i=0; i<devCount; i++)
-	{
+	for(i=0; i<devCount; i++) {
 		// Plot DEV 0, CH 0 level
 		short lev = 10*log10(devices[i]->peaks[0] / 32768.0);
 		plotLevel(lev>-18 ? lev : -18, i, 0);
@@ -136,13 +100,11 @@ void monitor()
 }
 
 
+int main(int argc, char *argv[]) {
 
-int main(int argc, char *argv[])
-{
 	// Expects a track name as argument, which will become the output dir
 	// where to save this recording session's tracks.
-	if(argc<2)
-	{
+	if(argc<2) {
 		printf("Output dir not specified!\n");
 		return -1;
 	}
@@ -160,8 +122,7 @@ int main(int argc, char *argv[])
     nodelay(stdscr, TRUE); /* getch() will be non-blocking */
     curs_set(0);
 
-    if (has_colors())
-    {
+    if (has_colors()) {
         start_color();
         init_pair(COLOR_BLACK, COLOR_BLACK, COLOR_BLACK);
         init_pair(COLOR_GREEN, COLOR_GREEN, COLOR_BLACK);
@@ -176,8 +137,7 @@ int main(int argc, char *argv[])
 	init(argv[1]);
 
 
-    for (;;)
-    {
+    for (;;) {
 		usleep(10000);
 		int c = getch();     /* refresh, accept single keystroke of input */
 
@@ -189,25 +149,23 @@ int main(int argc, char *argv[])
 			break;
 
 
-		switch(c)
-		{
-			case 'q':
-				cmdStopRec();
+		switch (c) {
+		case 'q':
+			cmdStopRec();
 			break;
-			case 'r':
-				cmdStartRec();
+		case 'r':
+			cmdStartRec();
 			break;
-			case 'm':
-				monitor();
+		case 'm':
+			monitor();
 			break;
-			case 'y': 
-				if(confirmStop)
-				{
-					// Stop the recording hardware and finalize the files...
-					stopRecording();
-					// ...then, exit the curses loop and end the program
-					exitRequested = 1;
-				}
+		case 'y':
+			if (confirmStop) {
+				// Stop the recording hardware and finalize the files...
+				stopRecording();
+				// ...then, exit the curses loop and end the program
+				exitRequested = 1;
+			}
 			break;
 		}
         
@@ -217,8 +175,8 @@ int main(int argc, char *argv[])
     return 0;
 }
 
-void finish(int sig)
-{
+
+void finish(int sig) {
     endwin();
 	
     exit(sig);
