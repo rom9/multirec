@@ -3,10 +3,10 @@ Multirec
 
 *The poor man's multichannel audio recorder*
 
->> DISCLAIMER!! <<
-------------------
+DISCLAIMER!! 
+-------------
 
-This is an old program that i wrote back in 2009. I put it here on GitHub just because it was sad to have it just sitting there in my hard drive, and maybe it could be useful as an example or inspiration for someone else.  
+This is an old program that i wrote back in 2009. I put it here on GitHub just because it was sad to have it sitting there in my hard drive, and maybe it could be useful as an example or inspiration for someone else.  
 Nowadays though, the same functionality implemented here (and much more!) is provided by JACK via the alsa_in client.  
 
 So, **please**, take a look at JACK before using or forking this software!! Here are some links:
