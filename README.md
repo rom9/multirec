@@ -53,7 +53,7 @@ These are all mainstream libraries, so they'll be easily available via you distr
 
 Usage
 -----
-The usage of this software could not be simpler, and it's functionality could not be more limited:
+The usage of this software could not be simpler, and its functionality could not be more limited:
 
     multirec <trackdir>
 
