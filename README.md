@@ -70,7 +70,7 @@ When you're done and you want to stop recording, press `q`. Then, if you _really
 Audio format
 ------------
 
-Data is saved as mono wave (.wav) files, one file per channel. For example, if you have 4 sound cards, the programs will spit out 8 .wav files.
+Data is saved as mono wave (.wav) files, one file per channel. For example, if you have 4 sound cards, the program will spit out 8 .wav files.
 
 Samples are 48kHz, signed 16bit integer, little endian. This configuration is hardcoded, mostly because i'm too slack, and anyway most consumer soundcards seem to support it.
 
