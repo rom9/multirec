@@ -120,12 +120,14 @@ typedef struct MRDevice_s
 // *** Global varz ***
 
 
-enum States {
+typedef enum {
 	MONITORING=0,
 	RECORDING,
 	STOPPING,
 	SKIP
-} state;
+} States;
+
+States volatile state;
 
 
 extern unsigned long long CPS;

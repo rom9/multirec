@@ -65,11 +65,14 @@ snd_output_t *output = NULL;  /** Alsa logging output */
 
 
 /** Possible state machine events coming from the GUI */
-enum Requests {
+typedef enum {
 	REQ_NONE=0,
 	REQ_START,
 	REQ_STOP,
-} request;
+} Requests;
+
+/** Current request coming from the GUI. This variable is shared among threads */
+Requests volatile request;
 
 
 
@@ -572,15 +575,17 @@ void *mainLoop(void *arg)
 		}
 
 		// Create device thread
-		if (pthread_create(&(c->thread), NULL, (void *) deviceLoop, (void *) c))
-		{
+		if (pthread_create(&(c->thread), NULL, (void *) deviceLoop, (void *) c)) {
 			log_dev_error(c, "error creating thread %d.\n", i);
 			finish(-1);
 		}
 	}
 
 
-	// *** Start capturing ! ***
+	// Wait for all device threads to settle down in barrier wait...
+	usleep(100000);
+
+	// ... start capturing ...
 	log_debug("Start !!\n");
 	err = snd_pcm_start(devices[0]->handle);
 	if (err < 0) {
@@ -588,8 +593,10 @@ void *mainLoop(void *arg)
 		finish(-1);
 	}
 
+	// ...then change state and unlock the barrier.
 	state = MONITORING;
 	barrier();
+
 
 	int run = 1;
 	while(run) {
@@ -640,7 +647,7 @@ void *mainLoop(void *arg)
  * Start recording captured audio to disk
  */
 void startRecording() {
-	request = RECORDING;
+	request = REQ_START;
 }
 
 
@@ -650,7 +657,7 @@ void startRecording() {
  */
 void stopRecording() {
 	// Set the request flag and wait for the main thread to terminate.
-	request = STOPPING;
+	request = REQ_STOP;
 	pthread_join(mainThread, NULL);
 }
 
