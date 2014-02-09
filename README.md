@@ -55,9 +55,9 @@ Usage
 -----
 The usage of this software could not be simpler, and its functionality could not be more limited:
 
-    multirec <trackdir>
+    multirec <trackname>
 
-Where `trackdir` is the directory where the recorded files have to be saved. If it does not exist under the current directory, it is created.
+Where `trackname` is the name of the track that is going to be recorded.
 
 Before launching the program, make sure you have the configuration file `multirec.rc` under the current directory. This file contains the soundcards configuration data, one line for each soundcard. Please refer to the comments in the provided .rc file for details.
 
@@ -74,36 +74,36 @@ Data is saved as mono wave (.wav) files, one file per channel. For example, if y
 
 Samples are 48kHz, signed 16bit integer, little endian. This configuration is hardcoded, mostly because i'm too slack, and anyway most consumer soundcards seem to support it.
 
-The file name pattern is `trackdir/NN_c.wav`, where:
+The file name pattern is `trackname-NN/c.wav`, where:
 
- * `trackdir` is the name of the track you are recording. Multirec looks for a subdirectory with this name under the current directory, and it creates one if needed.
- * `NN` is the session number, or a 2-digit counter that increments by 1 each time you record the same track. This is very useful when you record a band playing the same track over and over trying to achieve perfection :-)
+ * `trackname` is the name of the track you are recording. This will be the base name of the subdirectories where multirec will store your recordings.
+ * `NN` is the attempt number, or a 2-digit counter that increments by 1 each time you record the same track. This is very useful when you record a band playing the same track over and over trying to achieve perfection :-)
  * `c` is the channel id, or an alphabetic counter starting from 'a' which identifies the channel.
 
 So for example, suppose you are using 2 soundcards, and you want to record a track named "foo" :
 
     $ multirec foo
 
-When the recording starts, the program doesn't find a "foo/" subdirectory under the current dir, so it creates one. Then it creates the files for the first session:
+When the recording starts, the program looks for a subdirectory whose name starts with "foo-" under the current dir. It doesn't find one, so it creates the subdir for the first attempt, named "foo-01/". Finally, it creates the audio files:
 
-    foo/01_a.wav
-    foo/01_b.wav
-    foo/01_c.wav
-    foo/01_d.wav
+    foo-01/a.wav
+    foo-01/b.wav
+    foo-01/c.wav
+    foo-01/d.wav
 
 Then you stop recording and the program exits. The performance was not just right, so you want to record the same song again. Easy, just launch the same command as before:
 
     $ multirec foo
 
-Now, the program finds the subdirectory, and sees that there are already some files starting with "01", so it advances the counter, and creates :
+Now, the program finds the subdirectory, and sees that the last attempt count is "01", so it advances the counter, and creates :
 
-    foo/02_a.wav
-    foo/02_b.wav
-    foo/02_c.wav
-    foo/02_d.wav
+    foo-02/a.wav
+    foo-02/b.wav
+    foo-02/c.wav
+    foo-02/d.wav
 
 And so on, and so on, all the way to 99.
 
-When you want to record a different song, just specify a different name, and everything starts again in a new subdir.
+When you want to record a different song, just specify a different name, and everything starts again with a new basename and an attempt count of "01".
 
 ...and that's all it does. Have fun! :-)

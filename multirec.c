@@ -45,8 +45,8 @@ unsigned long long CPS = 0; // MUST be set to nonzero!
 /** (optimization) : clock cycles per millisecond (always equal to CPS*1000) */
 unsigned int CPMillis = 0; // MUST be set to nonzero!
 
-/** Output directory where the recorded .wav files will be */
-const char *outDir;
+/** Name of the track being recorded. */
+const char *trackName;
 
 
 MRDevice **devices;  /** Array of active devices, read from .rc file */
@@ -383,58 +383,62 @@ void deviceLoop(MRDevice *c) {
 }
 
 
-int fileNameFilter(const struct dirent *fname)
+int dirNameFilter(const struct dirent *fname)
 {
-	// file name pattern is "trk_NNNN_D.wav"
-	//   N = trk number (zero padded)
-	//   D = soundcard id (A = hw:0, B = hw:1, ...)
-	return (strlen(fname->d_name)==8 &&
-	        fname->d_name[0]>='0' && fname->d_name[1]<='9' &&
-	        fname->d_name[2]=='_' &&
-	        fname->d_name[3]>='a' && fname->d_name[3]<='z' &&
-	        strncmp( &fname->d_name[4], ".wav", 4)==0 ) ? 1 : 0;
+	// dir name pattern is "trackname-NN"
+	//   N = attempt number (zero padded)
+	int tLen = strlen(trackName);
+	return (strlen(fname->d_name) == tLen+3 &&
+			strncmp(fname->d_name, trackName, tLen)==0 &&
+	        fname->d_name[tLen]=='-' &&
+	        fname->d_name[tLen+1]>='0' && fname->d_name[tLen+1]<='9' &&
+	        fname->d_name[tLen+2]>='0' && fname->d_name[tLen+2]<='9') ? 1 : 0;
 }
 
 
 /**
- * Create the output .wav files for the session to be recorded. If needed, also
- * create the output directory.
- * File name pattern is "./DIR/NN_c.wav"
+ * Create the output directory and .wav files for the session to be recorded.
+ * File name pattern is "./DIR-NN/c.wav"
  *   DIR = track name (passed in as program argument)
- *   N = session number starting from 1 (zero padded)
+ *   N = attempt number starting from 1 (zero padded)
  *   c = channel id (a = hw:0/left, b = hw:0/right, c = hw:1/left, ...)
  */
 int openFiles() {
-	// Attempt to create outDir. If it already exists, go on...
-	if(mkdir(outDir, 0777)==-1 && errno!=EEXIST)
-		return -1;
-
 	int lastNum = 0;
 
-	// Scan dir contents to find the next available session number.
+	// Scan dir contents to find the next available attempt number for the
+	// current track.
 	struct dirent **namelist;
 	int n;
-	n = scandir(outDir, &namelist, fileNameFilter, alphasort);
+	n = scandir(".", &namelist, dirNameFilter, alphasort);
 	if (n < 0) {
-		perror("scandir");
+		log_error("Error in scandir. errno = %d \n", errno);
 	} else {
 		while(n--) {
 			if(lastNum==0)
-				lastNum = atoi( namelist[n]->d_name );
+				lastNum = atoi( namelist[n]->d_name + strlen(trackName) + 1 );
 			free(namelist[n]);
 		}
 		free(namelist);
 	}
 
-	int session = lastNum +1;
+	// Increment attempt number and derive the new dir name.
+	char recDir[256];
+	sprintf(recDir, "./%s-%02d", trackName, lastNum + 1);
 
-	// First available session number found. Go on and actually open new files...
+	// Attempt to create recDir. It must not already exist, otherwise bail.
+	if(mkdir(recDir, 0777) == -1) {
+		log_error("Error creating rec dir\n");
+		return -1;
+	}
+
+	// Recording directory created. Now go on and actually open new files...
 	char fname[256];
 	int i, chan;
 	for(i=0; i<devCount; i++) {
 		MRDevice *c	= devices[i];
 		for(chan=0; chan<MR_CHANNELS; chan++) {
-			sprintf(fname, "./%s/%02d_%c.wav", outDir, session, 'a'+((i*MR_CHANNELS)+chan) );
+			sprintf(fname, "./%s/%c.wav", recDir, 'a'+((i*MR_CHANNELS)+chan) );
 			
 			// Open one mono wav file per channel per device.
 			SF_INFO sfi;
@@ -833,7 +837,7 @@ static int cardInit(MRDevice *card)
  */
 void init(const char* out)
 {
-	outDir = out;
+	trackName = out;
 
     FILE* lf = fopen("out.log", "w+");
 	initLogging(lf, ERROR);

@@ -5,3 +5,6 @@
 *.log
 
 multirec
+/Debug
+.cproject
+.project
