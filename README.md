@@ -11,9 +11,9 @@ Nowadays though, the same functionality implemented here (and much more!) is pro
 
 So, **please**, take a look at JACK before using or forking this software!! Here are some links:
 
-* [http://trac.jackaudio.org/wiki/WalkThrough/User/AlsaInOut](http://trac.jackaudio.org/wiki/WalkThrough/User/AlsaInOut)
+* [https://github.com/jackaudio/jackaudio.github.com/wiki/WalkThrough_User_AlsaInOut](https://github.com/jackaudio/jackaudio.github.com/wiki/WalkThrough_User_AlsaInOut)
 * [http://manpages.ubuntu.com/manpages/raring/man1/alsa_in.1.html](http://manpages.ubuntu.com/manpages/raring/man1/alsa_in.1.html)
-* [http://jackaudio.org/multiple_devices](http://jackaudio.org/multiple_devices)
+* [http://www.jackaudio.org/faq/multiple_devices.html](http://www.jackaudio.org/faq/multiple_devices.html)
 
 
 What is multirec?
